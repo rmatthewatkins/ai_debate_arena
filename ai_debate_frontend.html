@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Debate Arena</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+        }
+
+        .setup-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .role-assignment {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .role-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .role-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .debate-area {
+            display: none;
+        }
+
+        .debate-area.active {
+            display: block;
+        }
+
+        .messages {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            height: 500px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .message {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .message.judge {
+            border-left-color: #ffd700;
+        }
+
+        .message.plaintiff {
+            border-left-color: #28a745;
+        }
+
+        .message.defendant {
+            border-left-color: #dc3545;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .message-role {
+            color: #667eea;
+        }
+
+        .message-ai {
+            color: #999;
+            font-size: 12px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎭 AI Debate Arena</h1>
+        
+        <div class="setup-section">
+            <h2 style="margin-bottom: 20px;">Setup Debate</h2>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Debate Topic:</label>
+                <input type="text" id="topic" placeholder="e.g., Should AI be regulated by governments?" value="Should social media be regulated?">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Turns per debater before final judgment:</label>
+                <input type="number" id="turns-per-debater" min="1" max="10" value="3" style="width: 100px;">
+                <span style="margin-left: 10px; color: #666; font-size: 14px;">Total turns: <span id="total-turns">9</span></span>
+            </div>
+
+            <div class="role-assignment">
+                <div class="role-card">
+                    <h3>👨‍⚖️ Judge</h3>
+                    <select id="judge-ai">
+                        <option value="claude">Claude</option>
+                        <option value="chatgpt">ChatGPT</option>
+                        <option value="gemini">Gemini</option>
+                    </select>
+                </div>
+
+                <div class="role-card">
+                    <h3>✅ Plaintiff (For)</h3>
+                    <select id="plaintiff-ai">
+                        <option value="claude">Claude</option>
+                        <option value="chatgpt" selected>ChatGPT</option>
+                        <option value="gemini">Gemini</option>
+                    </select>
+                </div>
+
+                <div class="role-card">
+                    <h3>❌ Defendant (Against)</h3>
+                    <select id="defendant-ai">
+                        <option value="claude">Claude</option>
+                        <option value="chatgpt">ChatGPT</option>
+                        <option value="gemini" selected>Gemini</option>
+                    </select>
+                </div>
+            </div>
+
+            <button onclick="startDebate()">Start Debate</button>
+        </div>
+
+        <div class="debate-area" id="debate-area">
+            <div class="messages" id="messages"></div>
+            
+            <div class="controls">
+                <button onclick="nextTurn()" id="next-btn">Next Turn</button>
+                <button onclick="resetDebate()" style="background: #dc3545;">Reset Debate</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000';
+        let debateState = {
+            topic: '',
+            roles: {},
+            messages: {},
+            turn: 0,
+            turnOrder: ['plaintiff', 'defendant', 'judge'],
+            turnsPerDebater: 3,
+            totalTurns: 9,
+            finalJudgment: false
+        };
+
+        // Update total turns display when user changes turns per debater
+        document.addEventListener('DOMContentLoaded', () => {
+            const turnsInput = document.getElementById('turns-per-debater');
+            turnsInput.addEventListener('input', () => {
+                const turns = parseInt(turnsInput.value) || 3;
+                document.getElementById('total-turns').textContent = turns * 3;
+            });
+        });
+
+        function startDebate() {
+            const topic = document.getElementById('topic').value.trim();
+            if (!topic) {
+                alert('Please enter a debate topic');
+                return;
+            }
+
+            const turnsPerDebater = parseInt(document.getElementById('turns-per-debater').value);
+            if (turnsPerDebater < 1 || turnsPerDebater > 10) {
+                alert('Turns per debater must be between 1 and 10');
+                return;
+            }
+
+            debateState.topic = topic;
+            debateState.turnsPerDebater = turnsPerDebater;
+            debateState.totalTurns = turnsPerDebater * 3; // plaintiff + defendant + judge
+            debateState.roles = {
+                judge: document.getElementById('judge-ai').value,
+                plaintiff: document.getElementById('plaintiff-ai').value,
+                defendant: document.getElementById('defendant-ai').value
+            };
+
+            // Check for duplicate AI assignments
+            const ais = Object.values(debateState.roles);
+            if (new Set(ais).size !== ais.length) {
+                alert('Each AI must have a different role!');
+                return;
+            }
+
+            debateState.messages = {
+                judge: [],
+                plaintiff: [],
+                defendant: []
+            };
+            debateState.turn = 0;
+            debateState.finalJudgment = false;
+
+            document.querySelector('.setup-section').style.display = 'none';
+            document.getElementById('debate-area').classList.add('active');
+            document.getElementById('messages').innerHTML = '<div class="loading">Debate started! Click "Next Turn" to begin.</div>';
+        }
+
+        async function nextTurn() {
+            const currentRole = debateState.turnOrder[debateState.turn % 3];
+            const currentAI = debateState.roles[currentRole];
+            const btn = document.getElementById('next-btn');
+            
+            btn.disabled = true;
+            btn.textContent = 'Thinking...';
+
+            try {
+                // Check if this is the final judgment turn
+                const isFinalJudgment = debateState.turn >= debateState.totalTurns && currentRole === 'judge';
+                
+                // Build context from other participants
+                const context = buildContext(currentRole, isFinalJudgment);
+                
+                const response = await fetch(`${API_URL}/api/debate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ai: currentAI,
+                        role: currentRole,
+                        messages: context,
+                        topic: debateState.topic,
+                        isFinalJudgment: isFinalJudgment
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                // Add message to history
+                debateState.messages[currentRole].push({
+                    role: 'assistant',
+                    content: data.response
+                });
+
+                // Update other participants' context
+                updateOtherParticipants(currentRole, data.response);
+
+                // Display message
+                displayMessage(currentRole, currentAI, data.response, isFinalJudgment);
+
+                debateState.turn++;
+
+                // Check if debate should end
+                if (isFinalJudgment) {
+                    btn.textContent = 'Debate Complete';
+                    btn.disabled = true;
+                    debateState.finalJudgment = true;
+                } else if (debateState.turn >= debateState.totalTurns) {
+                    btn.textContent = 'Final Judgment';
+                }
+                
+            } catch (error) {
+                alert('Network error: ' + error.message);
+            } finally {
+                if (!debateState.finalJudgment) {
+                    btn.disabled = false;
+                    if (btn.textContent === 'Thinking...') {
+                        btn.textContent = 'Next Turn';
+                    }
+                }
+            }
+        }
+
+        function buildContext(currentRole, isFinalJudgment = false) {
+            const context = [...debateState.messages[currentRole]];
+            
+            // Add final judgment instruction for judge's last turn
+            if (isFinalJudgment && currentRole === 'judge') {
+                context.push({
+                    role: 'user',
+                    content: 'The debate has concluded. Please now provide your final judgment. Declare a winner (Plaintiff or Defendant) and explain your reasoning based on the arguments presented.'
+                });
+            }
+            
+            return context;
+        }
+
+        function updateOtherParticipants(speakerRole, message) {
+            const roleLabels = {
+                judge: 'Judge',
+                plaintiff: 'Plaintiff',
+                defendant: 'Defendant'
+            };
+
+            Object.keys(debateState.messages).forEach(role => {
+                if (role !== speakerRole) {
+                    debateState.messages[role].push({
+                        role: 'user',
+                        content: `${roleLabels[speakerRole]}: ${message}`
+                    });
+                }
+            });
+        }
+
+        function displayMessage(role, ai, content, isFinalJudgment = false) {
+            const messagesDiv = document.getElementById('messages');
+            const roleEmoji = { judge: '👨‍⚖️', plaintiff: '✅', defendant: '❌' };
+            
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${role}`;
+            
+            let header = `${roleEmoji[role]} ${role.toUpperCase()}`;
+            if (isFinalJudgment) {
+                header += ' - 🏆 FINAL JUDGMENT';
+            }
+            
+            messageEl.innerHTML = `
+                <div class="message-header">
+                    <span class="message-role">${header}</span>
+                    <span class="message-ai">${ai.toUpperCase()}</span>
+                </div>
+                <div>${content}</div>
+            `;
+            
+            messagesDiv.appendChild(messageEl);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function resetDebate() {
+            location.reload();
+        }
+    </script>
+</body>
+</html>
